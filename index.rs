@@ -81,30 +81,6 @@ impl From<Error> for http::Error {
     }
 }
 
-// Yes I added this because .map doesn't exist for every type
-// No I am no obsessed with chaining
-// ....
-// Maybe a little
-trait Map {
-    type error;
-
-    fn map<F>(self, f: F) -> Result<Self, Self::error>
-    where
-        Self: Sized,
-        F: FnOnce(Self) -> Result<Self, Self::error>;
-}
-impl Map for CounterBlock {
-    type error = Error;
-
-    fn map<F>(self, f: F) -> Result<Self, Self::error>
-    where
-        Self: Sized,
-        F: FnOnce(Self) -> Result<Self, Self::error>,
-    {
-        f(self)
-    }
-}
-
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
@@ -114,7 +90,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
-    WalkDir::new(root)
+    let counter_block = WalkDir::new(root)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
         // The reason I don't use filter_map is because I don't want to swallow errors
@@ -137,8 +113,9 @@ pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
                 counter_block = counter_block + file_metrics.counters;
                 counter_block
             },
-        )
-        .map(|counter_block| Ok(counter_block))
+        );
+
+    Ok(counter_block)
 }
 
 fn handler(request: Request<()>) -> http::Result<Response<String>> {

@@ -7,6 +7,7 @@ use url::Url;
 use walkdir::{DirEntry, Error as WalkDirError, WalkDir};
 
 #[derive(Serialize)]
+// Thanks Globi for this actual black magic
 #[serde(remote = "Count")]
 struct NewCount {
     safe: u64,
@@ -57,37 +58,6 @@ impl From<CounterBlock> for Output {
         }
     }
 }
-
-// fn serialize_output_field<S>(serializer: S, count: &Count, name: &'static str) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-// {
-//     let mut s = serializer.serialize_struct(name, 2)?;
-//     s.serialize_field("safe", &count.safe)?;
-//     s.serialize_field("unsafe", &count.unsafe_)?;
-//     s.end()
-// }
-
-// impl Serialize for Output {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let functions = serialize_output_field(serializer, &self.functions, "functions")?;
-//         let exprs = serialize_output_field(serializer, &self.exprs, "exprs")?;
-//         let item_impls = serialize_output_field(serializer, &self.item_impls, "item_impls")?;
-//         let item_traits = serialize_output_field(serializer, &self.item_traits, "item_traits")?;
-//         let methods = serialize_output_field(serializer, &self.methods, "methods")?;
-
-//         let mut s = serializer.serialize_struct("CounterBlock", 5)?;
-//         s.serialize_field("functions", &functions)?;
-//         s.serialize_field("exprs", &exprs)?;
-//         s.serialize_field("item_impls", &item_impls)?;
-//         s.serialize_field("item_traits", &item_traits)?;
-//         s.serialize_field("methods", &methods)?;
-//         s.end()
-//     }
-// }
 
 #[derive(Debug)]
 pub enum UnsafeError {

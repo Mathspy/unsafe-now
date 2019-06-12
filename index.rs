@@ -2,7 +2,8 @@ use geiger::{find_unsafe_in_file, Count, CounterBlock, IncludeTests, ScanFileErr
 use git2::Repository;
 use http::{header, Request, Response, StatusCode};
 use serde::Serialize;
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, path::Path};
+use tempdir::TempDir;
 use url::Url;
 use walkdir::{DirEntry, Error as WalkDirError, WalkDir};
 
@@ -123,9 +124,9 @@ fn handler(request: Request<()>) -> http::Result<Response<String>> {
 
     match (hash_query.get("user"), hash_query.get("repo")) {
         (Some(user), Some(repo)) => {
-            let identifer = format!("{}/{}", user, repo);
-            let repo_url = format!("https://github.com/{}", identifer);
-            let temp_dir = Path::new("/tmp/").join(identifer);
+            let repo_url = format!("https://github.com/{}/{}", user, repo);
+            // Thanks let dumbqt = proxi; for telling me about this crate!
+            let temp_dir = TempDir::new(&repo).expect("Should be able to create a temp dir");
 
             match Repository::clone(&repo_url, &temp_dir) {
                 Ok(_) => (),
@@ -147,10 +148,6 @@ fn handler(request: Request<()>) -> http::Result<Response<String>> {
             };
 
             let formattable_data = Output::from(data);
-
-            // This should never fail because we literally just created this directory
-            // So it's okay to unwrap
-            fs::remove_dir_all(&temp_dir).unwrap();
 
             let response = Response::builder()
                 .status(StatusCode::OK)

@@ -11,6 +11,9 @@ use walkdir::{DirEntry, Error as WalkDirError, WalkDir};
 #[serde(remote = "Count")]
 struct NewCount {
     safe: u64,
+
+    // Thanks let dumbqt = proxi; for this! <3
+    #[serde(rename = "unsafe")]
     unsafe_: u64,
 }
 

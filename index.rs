@@ -37,7 +37,13 @@ struct Output {
 impl From<CounterBlock> for Output {
     fn from(counter_block: CounterBlock) -> Self {
         Output {
-            // TODO: Ask Rust server if theere is a way to avoid these clone()s
+            // No we can't remove those clone()s because we don't own type
+            // so we can't derive copy ourselves on it
+            //
+            // And yes there's no performance difference between clone()ing
+            // and copying a struct with primitives
+            // Thanks &star_wars, Fenrir, ~~EYESqu~~ ~~eyes-chan~~ I mean seequ
+            // C: <3
             functions: counter_block.functions.clone(),
             exprs: counter_block.exprs.clone(),
             item_impls: counter_block.item_impls.clone(),

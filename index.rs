@@ -93,31 +93,26 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
+// Reworked find_unsafe thanks to let dumbqt = proxi;
+// Much less allocations now and probably more readable lol
 pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
-    let counter_block = WalkDir::new(root)
+    let mut counter_block = CounterBlock::default();
+
+    for entry in WalkDir::new(root)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
-        // The reason I don't use filter_map is because I don't want to swallow errors
-        .map(|entry| {
-            entry
-                .map(|dir_entry| dir_entry.path().to_owned())
-                .map_err(|err| Error::WalkDirError(err))
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .iter()
-        .filter(|entry| entry.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false))
-        .map(|file| {
-            find_unsafe_in_file(file, IncludeTests::No).map_err(|err| Error::ScanFileError(err))
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .fold(
-            CounterBlock::default(),
-            |mut counter_block, file_metrics| {
-                counter_block = counter_block + file_metrics.counters;
-                counter_block
-            },
-        );
+    {
+        let file = entry
+            .map(|dir_entry| dir_entry.path().to_owned())
+            .map_err(|err| Error::WalkDirError(err))?;
+
+        if file.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false) {
+            let file_metrics = find_unsafe_in_file(&file, IncludeTests::No)
+                .map_err(|err| Error::ScanFileError(err))?;
+
+            counter_block = counter_block + file_metrics.counters;
+        }
+    }
 
     Ok(counter_block)
 }

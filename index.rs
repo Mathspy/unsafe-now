@@ -64,20 +64,20 @@ impl From<CounterBlock> for Output {
 }
 
 #[derive(Debug)]
-pub enum Error {
+pub enum ScanningError {
     WalkDirError(WalkDirError),
     ScanFileError(ScanFileError),
 }
 // Thanks Globi I totally didn't understand http's errors apparently lol
-impl From<Error> for http::Response<String> {
-    fn from(error: Error) -> Self {
+impl From<ScanningError> for http::Response<String> {
+    fn from(error: ScanningError) -> Self {
         match error {
-            Error::WalkDirError(_) => Response::builder()
+            ScanningError::WalkDirError(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .body("Failed to traverse repo".to_owned())
                 // We literally just created an error-y response so it's okay to unwrap_err
                 .unwrap(),
-            Error::ScanFileError(error) => Response::builder()
+            ScanningError::ScanFileError(error) => Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .body(format!("Failed to scan file {}", error))
                 // Same as error above
@@ -96,7 +96,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
 
 // Reworked find_unsafe thanks to let dumbqt = proxi;
 // Much less allocations now and probably more readable lol
-pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
+pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, ScanningError> {
     let mut counter_block = CounterBlock::default();
 
     for entry in WalkDir::new(root)
@@ -105,11 +105,11 @@ pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
     {
         let file = entry
             .map(|dir_entry| dir_entry.path().to_owned())
-            .map_err(|err| Error::WalkDirError(err))?;
+            .map_err(|err| ScanningError::WalkDirError(err))?;
 
         if file.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false) {
             let file_metrics = find_unsafe_in_file(&file, IncludeTests::No)
-                .map_err(|err| Error::ScanFileError(err))?;
+                .map_err(|err| ScanningError::ScanFileError(err))?;
 
             counter_block = counter_block + file_metrics.counters;
         }

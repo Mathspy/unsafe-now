@@ -60,19 +60,19 @@ impl From<CounterBlock> for Output {
 }
 
 #[derive(Debug)]
-pub enum UnsafeError {
+pub enum Error {
     WalkDirError(WalkDirError),
     ScanFileError(ScanFileError),
 }
-impl From<UnsafeError> for http::Error {
-    fn from(error: UnsafeError) -> Self {
+impl From<Error> for http::Error {
+    fn from(error: Error) -> Self {
         match error {
-            UnsafeError::WalkDirError(_) => Response::builder()
+            Error::WalkDirError(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .body("Failed to traverse repo")
                 // We literally just created an error-y response so it's okay to unwrap_err
                 .unwrap_err(),
-            UnsafeError::ScanFileError(error) => Response::builder()
+            Error::ScanFileError(error) => Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .body(format!("Failed to scan file {}", error))
                 // Same as error above
@@ -94,7 +94,7 @@ trait Map {
         F: FnOnce(Self) -> Result<Self, Self::error>;
 }
 impl Map for CounterBlock {
-    type error = UnsafeError;
+    type error = Error;
 
     fn map<F>(self, f: F) -> Result<Self, Self::error>
     where
@@ -113,7 +113,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, UnsafeError> {
+pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, Error> {
     WalkDir::new(root)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
@@ -121,14 +121,13 @@ pub fn find_unsafe<P: AsRef<Path>>(root: P) -> Result<CounterBlock, UnsafeError>
         .map(|entry| {
             entry
                 .map(|dir_entry| dir_entry.path().to_owned())
-                .map_err(|err| UnsafeError::WalkDirError(err))
+                .map_err(|err| Error::WalkDirError(err))
         })
         .collect::<Result<Vec<_>, _>>()?
         .iter()
         .filter(|entry| entry.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false))
         .map(|file| {
-            find_unsafe_in_file(file, IncludeTests::No)
-                .map_err(|err| UnsafeError::ScanFileError(err))
+            find_unsafe_in_file(file, IncludeTests::No).map_err(|err| Error::ScanFileError(err))
         })
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()

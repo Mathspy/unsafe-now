@@ -67,19 +67,20 @@ pub enum Error {
     WalkDirError(WalkDirError),
     ScanFileError(ScanFileError),
 }
-impl From<Error> for http::Error {
+// Thanks Globi I totally didn't understand http's errors apparently lol
+impl From<Error> for http::Response<String> {
     fn from(error: Error) -> Self {
         match error {
             Error::WalkDirError(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Failed to traverse repo")
+                .body("Failed to traverse repo".to_owned())
                 // We literally just created an error-y response so it's okay to unwrap_err
-                .unwrap_err(),
+                .unwrap(),
             Error::ScanFileError(error) => Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .body(format!("Failed to scan file {}", error))
                 // Same as error above
-                .unwrap_err(),
+                .unwrap(),
         }
     }
 }
@@ -145,7 +146,12 @@ fn handler(request: Request<()>) -> http::Result<Response<String>> {
                 }
             };
 
-            let something = Output::from(find_unsafe(&temp_dir)?);
+            let data = match find_unsafe(&temp_dir) {
+                Ok(data) => data,
+                Err(error) => return Ok(error.into()),
+            };
+
+            let formattable_data = Output::from(data);
 
             // This should never fail because we literally just created this directory
             // So it's okay to unwrap
@@ -155,7 +161,7 @@ fn handler(request: Request<()>) -> http::Result<Response<String>> {
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "application/json")
                 // Our serde_json implementation should never fail, okay to unwrap
-                .body(serde_json::to_string_pretty(&something).unwrap())
+                .body(serde_json::to_string_pretty(&formattable_data).unwrap())
                 .expect("Failed to render response");
 
             Ok(response)

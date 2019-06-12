@@ -1,0 +1,12 @@
+{
+  "name": "unsafe-now",
+  "version": 2,
+  "routes": [{"src": "/(?<user>[^/]+)/(?<repo>[^/]+)/?", "dest": "/?user=$user&repo=$repo"}],
+  "builds": [
+    {
+      "src": "index.rs",
+      "use": "@now/rust"
+    }
+  ],
+  "alias": "unsafe.now.sh"
+}
